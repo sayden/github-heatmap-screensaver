@@ -1,0 +1,23 @@
+{
+  "name": "github-heatmap-screensaver",
+  "homepage": "https://github.com/sayden/github-heatmap-screensaver",
+  "authors": [
+    "sayden <mariocaster@gmail.com>"
+  ],
+  "description": "A screensaver to show commits that a list of repos haver over the week",
+  "main": "index.html",
+  "moduleType": [],
+  "keywords": [
+    "github",
+    "heatmap",
+    "screensaver"
+  ],
+  "license": "Apache 2.0",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
