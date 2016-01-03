@@ -9,6 +9,70 @@ function parseD3DataForHeatmap(json){
 }
 
 
+function cleanGithubData(user, repo, i, hasNext, accData, cb){
+  var url = "https://api.github.com/repos/" + user + "/" + repo + "/commits?since=2008-01-01&page=";
+
+  if(hasNext == false){
+    return cb(accData)
+  }
+
+  $.ajax(url + i, {
+    method:'GET',
+    dataType:"json",
+    beforeSend: addAuthorizationHeader,
+    success: function(data, textStatus, request){
+      console.log("Success for page " + i);
+      hasNext = false
+      if (request.getResponseHeader("Link") != null){
+        hasNext = request.getResponseHeader("Link").split("rel=")[1].includes("next");
+      }
+
+      var cleaned = data.map(function(d){
+        return d.commit.committer.date;
+      }).sort(function(a,b){
+        Date.compare(Date.parse(a),Date.parse(b))
+      }).map(function(d){
+        var date = d.slice(0, d.indexOf("T"))
+        return {"day":moment(date).day(), "date":date}
+      });
+
+      cleanGithubData(user, repo, i+1, hasNext, accData.concat(cleaned), cb)
+    }
+  });
+}
+
+function getGithubData(user, repo){
+  var localStorageData = window.localStorage.getItem(user + ":" + repo);
+  if(localStorageData){
+    var data = JSON.parse(localStorageData);
+    console.log(user + ":" + repo + " already stored, reusing...", data);
+
+  } else {
+    cleanGithubData(user, repo, 1, true, [], function(github){
+      var data = {
+        data: github.sort(),
+        timestamp: Date.now()
+      }
+      console.log("New data, storing...");
+      window.localStorage.setItem(user + ":" + repo, JSON.stringify(data));
+    });
+  }
+}
+
+// addAuthorizationHeader to ajax calls to github api
+function addAuthorizationHeader(xhr){
+  // Write your username / password here if you run out of authorization requests
+  // Warning! Don't use this in public servers as your credentials will travel
+  // to each client
+  var githubUsername = "",
+      githubPassword = "";
+  xhr.setRequestHeader("Authorization", "Basic " + btoa(githubUsername + ":"
+    + githubPassword));
+}
+
+
+getGithubData("sayden", "github-heatmap-screensaver");
+
 // TODO Returns a fully configured D3 Heatmap for the given data
 function setD3Chart(data){
   var onlyWeekdays = false;
@@ -22,7 +86,7 @@ function setD3Chart(data){
             colors = ["#ffffd9","#edf8b1","#c7e9b4","#7fcdbb","#41b6c4","#1d91c0","#225ea8","#253494","#081d58"], // alternatively colorbrewer.YlGnBu[9]
             days = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"],
             days = ["1a", "2a", "3a", "4a", "5a", "6a", "7a", "8a", "9a", "10a", "11a", "12a", "1p", "2p", "3p", "4p", "5p", "6p", "7p", "8p", "9p", "10p", "11p", "12p"];
-            dataset = ["file:///home/mcastro/pers/github-heatmap-screensaver/data.tsv"];
+            dataset = ["http://localhost:8000/data.tsv"];
   if (onlyWeekdays) {
     margin.days = margin.days.slice(0,5);
   }
