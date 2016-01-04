@@ -29,12 +29,23 @@ function cleanGithubData(user, repo, i, hasNext, accData, cb){
 
       var cleaned = data.map(function(d){
         return d.commit.committer.date;
-      }).sort(function(a,b){
-        Date.compare(Date.parse(a),Date.parse(b))
-      }).map(function(d){
-        var date = d.slice(0, d.indexOf("T"))
-        return {"day":moment(date).day(), "date":date}
-      });
+      }).reduce(function(map, w){
+        var newW = w.slice(0, w.indexOf("T"));
+        map[newW] = (map[w]||0)+1;
+        map["day"] = moment(newW).day();
+        return map;
+      }, Object.create(null));
+
+      console.log(cleaned);
+
+      // var cleaned = data.map(function(d){
+      //   return d.commit.committer.date;
+      // }).sort(function(a,b){
+      //   Date.compare(Date.parse(a),Date.parse(b))
+      // }).map(function(d){
+      //   var date = d.slice(0, d.indexOf("T"))
+      //   return {"day":moment(date).day(), "date":date}
+      // });
 
       cleanGithubData(user, repo, i+1, hasNext, accData.concat(cleaned), cb)
     }
@@ -50,7 +61,7 @@ function getGithubData(user, repo){
   } else {
     cleanGithubData(user, repo, 1, true, [], function(github){
       var data = {
-        data: github.sort(),
+        data: github,
         timestamp: Date.now()
       }
       console.log("New data, storing...");
@@ -70,8 +81,34 @@ function addAuthorizationHeader(xhr){
     + githubPassword));
 }
 
+function getLast30Weeks(){
+  var days = [];
 
-getGithubData("sayden", "github-heatmap-screensaver");
+  var j = 0;
+  for (i = 30; i>0; i--){
+    days.push("" + moment().subtract(j, 'week').date().day())
+    j++;
+  }
+
+  return days;
+}
+
+function getLast7Days(){
+  var days = [];
+
+  var j = 0;
+  for (i = 7; i>0; i--){
+    var day = "" + moment().subtract(j, 'day').day();
+    days.push(moment.weekdays(parseInt(day)))
+    j++;
+  }
+
+  return days;
+}
+
+setD3Chart("http://localhost:8000/data.tsv")
+
+getGithubData("sayden", "docker-commander");
 
 // TODO Returns a fully configured D3 Heatmap for the given data
 function setD3Chart(data){
@@ -84,9 +121,12 @@ function setD3Chart(data){
             legendElementWidth = gridSize*2,
             buckets = 9,
             colors = ["#ffffd9","#edf8b1","#c7e9b4","#7fcdbb","#41b6c4","#1d91c0","#225ea8","#253494","#081d58"], // alternatively colorbrewer.YlGnBu[9]
-            days = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"],
-            days = ["1a", "2a", "3a", "4a", "5a", "6a", "7a", "8a", "9a", "10a", "11a", "12a", "1p", "2p", "3p", "4p", "5p", "6p", "7p", "8p", "9p", "10p", "11p", "12p"];
-            dataset = ["http://localhost:8000/data.tsv"];
+            // daysW = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"],
+            daysW = getLast7Days(),
+            // days = ["1a", "2a", "3a", "4a", "5a", "6a", "7a", "8a", "9a", "10a", "11a", "12a", "1p", "2p", "3p", "4p", "5p", "6p", "7p", "8p", "9p", "10p", "11p", "12p"];
+            days = getLast30Weeks();
+            // dataset = ["http://localhost:8000/data.tsv"];
+            dataset = [data];
   if (onlyWeekdays) {
     margin.days = margin.days.slice(0,5);
   }
@@ -98,7 +138,7 @@ function setD3Chart(data){
       .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
   var dayLabels = svg.selectAll(".dayLabel")
-      .data(days)
+      .data(daysW)
       .enter().append("text")
         .text(function (d) { return d; })
         .attr("x", 0)
@@ -179,5 +219,3 @@ function setD3Chart(data){
 
   heatmapChart(dataset);
 }
-
-setD3Chart("//data.tsv")
