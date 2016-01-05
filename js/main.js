@@ -27,58 +27,52 @@ function cleanGithubData(user, repo, i, hasNext, accData, cb){
         hasNext = request.getResponseHeader("Link").split("rel=")[1].includes("next");
       }
 
-      var cleaned = data.map(function(d){
-        return d.commit.committer.date;
-      }).reduce(function(map, w){
-        var newW = w.slice(0, w.indexOf("T"));
-        map[newW] = (map[w]||0)+1;
-        map["day"] = moment(newW).day();
-        return map;
-      }, Object.create(null));
-
-      console.log(cleaned);
-
       // var cleaned = data.map(function(d){
       //   return d.commit.committer.date;
-      // }).sort(function(a,b){
-      //   Date.compare(Date.parse(a),Date.parse(b))
-      // }).map(function(d){
-      //   var date = d.slice(0, d.indexOf("T"))
-      //   return {"day":moment(date).day(), "date":date}
       // });
+
+      var cleaned = data.map(function(d){
+        return d.commit.committer.date;
+      }).sort(function(a,b){
+        Date.compare(Date.parse(a),Date.parse(b))
+      }).map(function(d){
+        var date = d.slice(0, d.indexOf("T"))
+        return date;
+      });
 
       cleanGithubData(user, repo, i+1, hasNext, accData.concat(cleaned), cb)
     }
   });
 }
 
+function count(ary, classifier) {
+    return ary.reduce(function(counter, item) {
+        var p = (classifier || String)(item);
+        counter[p] = counter.hasOwnProperty(p) ? counter[p] + 1 : 1;
+        return counter;
+    }, {})
+}
+
 function getGithubData(user, repo){
   var localStorageData = window.localStorage.getItem(user + ":" + repo);
   if(localStorageData){
     var data = JSON.parse(localStorageData);
-    console.log(user + ":" + repo + " already stored, reusing...", data);
+    console.log(user + ":" + repo + " already stored, reusing...");
+    console.table(data.data);
 
   } else {
     cleanGithubData(user, repo, 1, true, [], function(github){
+      var newGithub = count(github);
       var data = {
-        data: github,
+        data: newGithub,
         timestamp: Date.now()
       }
-      console.log("New data, storing...");
+
+      console.log("Storing new data...");
+
       window.localStorage.setItem(user + ":" + repo, JSON.stringify(data));
     });
   }
-}
-
-// addAuthorizationHeader to ajax calls to github api
-function addAuthorizationHeader(xhr){
-  // Write your username / password here if you run out of authorization requests
-  // Warning! Don't use this in public servers as your credentials will travel
-  // to each client
-  var githubUsername = "",
-      githubPassword = "";
-  xhr.setRequestHeader("Authorization", "Basic " + btoa(githubUsername + ":"
-    + githubPassword));
 }
 
 function getLast30Weeks(){
